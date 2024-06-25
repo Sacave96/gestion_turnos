@@ -30,25 +30,38 @@ if (isset($_POST['exportar'])) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
-    $id = $_POST['id'];
     $numero_turno = $_POST['numero_turno'];
-    $cliente_id = $_POST['cliente_id'];
+    $cliente_nombre = $_POST['cliente_nombre'];
     $estado = $_POST['estado'];
     $seccion = $_POST['seccion'];
 
     if ($_POST['accion'] === 'modificar') {
+        $id = $_POST['id'];
+        $cliente_id = $_POST['cliente_id'];
         $sql = "UPDATE turnos SET numero_turno='$numero_turno', cliente_id='$cliente_id', estado='$estado', seccion='$seccion' WHERE id='$id'";
     } elseif ($_POST['accion'] === 'borrar') {
+        $id = $_POST['id'];
         $sql = "DELETE FROM turnos WHERE id='$id'";
     } elseif ($_POST['accion'] === 'agregar') {
-        $sql = "INSERT INTO turnos (numero_turno, cliente_id, estado, seccion) VALUES ('$numero_turno', '$cliente_id', '$estado', '$seccion')";
+        // Crear un nuevo cliente y obtener el ID del cliente recién creado
+        $sql_cliente = "INSERT INTO clientes (nombre) VALUES ('$cliente_nombre')";
+        if ($conn->query($sql_cliente) === TRUE) {
+            $cliente_id = $conn->insert_id;
+            $sql = "INSERT INTO turnos (numero_turno, cliente_id, estado, seccion) VALUES ('$numero_turno', '$cliente_id', '$estado', '$seccion')";
+        } else {
+            die("Error al crear el cliente: " . $conn->error);
+        }
     }
-    $conn->query($sql);
+
+    if ($conn->query($sql) === FALSE) {
+        die("Error: " . $conn->error);
+    }
+
     header("Location: admin.php");
     exit();
 }
 
-$sql = "SELECT * FROM turnos";
+$sql = "SELECT turnos.*, clientes.nombre as cliente_nombre FROM turnos LEFT JOIN clientes ON turnos.cliente_id = clientes.id";
 $result = $conn->query($sql);
 
 $conn->close();
@@ -113,7 +126,7 @@ $conn->close();
         <form method="post">
             <input type="hidden" name="accion" value="agregar">
             <input type="text" name="numero_turno" placeholder="Número de Turno" required>
-            <input type="text" name="cliente_id" placeholder="ID de Cliente" required>
+            <input type="text" name="cliente_nombre" placeholder="Nombre del Cliente" required>
             <select name="estado" required>
                 <option value="en espera">En espera</option>
                 <option value="atendido">Atendido</option>
@@ -131,6 +144,9 @@ $conn->close();
         <form method="post">
             <button type="submit" name="exportar" value="exportar">Exportar Datos</button>
         </form>
+        <form method="post" action="admin_grafico.php">
+            <button type="submit">Ver Gráficos</button>
+        </form>
     </div>
 
     <table>
@@ -138,6 +154,7 @@ $conn->close();
             <th>ID</th>
             <th>Número de Turno</th>
             <th>ID de Cliente</th>
+            <th>Nombre del Cliente</th>
             <th>Estado</th>
             <th>Sección</th>
             <th>Timestamp</th>
@@ -150,6 +167,7 @@ $conn->close();
                         <td><?php echo $row['id']; ?></td>
                         <td><input type="text" name="numero_turno" value="<?php echo $row['numero_turno']; ?>"></td>
                         <td><input type="text" name="cliente_id" value="<?php echo $row['cliente_id']; ?>"></td>
+                        <td><?php echo $row['cliente_nombre']; ?></td>
                         <td>
                             <select name="estado">
                                 <option value="en espera" <?php if($row['estado'] == 'en espera') echo 'selected'; ?>>En espera</option>
@@ -178,4 +196,7 @@ $conn->close();
     </table>
 </body>
 </html>
+
+
+
 
